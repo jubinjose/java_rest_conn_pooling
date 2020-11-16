@@ -1,0 +1,1 @@
+Template Spring Boot app with port set to 9090
