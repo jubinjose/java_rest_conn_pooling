@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<Configuration>
+    <Properties>
+        <!--Base Log Directory must be in the home directory path specified under the (packaging) pom.xml files
+        rpm-maven-plugin and the plugin's associated .conf file.-->
+        <Property name="LOG_DIR">${sys:log.path:-./logs}</Property>
+        <Property name="LOG_FILE_NAME">rest-conn-pooling</Property>
+        <!--        <Property name="LOG_PATTERN">[%-5level] [%d{ISO8601}] | [%t] [%X{applicationName}] [%logger{0}] [%X{X-B3-TraceId}] -&#45;&#45; %m%n%ex
+                </Property>-->
+        <Property name="ROLLING_FILE_INFO">${LOG_DIR}/${LOG_FILE_NAME}.log</Property>
+        <Property name="ROLLING_FILE_DEBUG">${LOG_DIR}/${LOG_FILE_NAME}-debug.log</Property>
+        <Property name="ROLLING_FILE_INFO_ARCHIVE">${LOG_DIR}/$${date:yyyy-MM}/${LOG_FILE_NAME}-%d{MM-dd-yyyy}-%i.log.zip</Property>
+        <Property name="ROLLING_FILE_DEBUG_ARCHIVE">${LOG_DIR}/$${date:yyyy-MM}/${LOG_FILE_NAME}-debug-%d{MM-dd-yyyy}-%i.log.zip</Property>
+    </Properties>
+
+    <Appenders>
+        <Console name="STDOUT" target="SYSTEM_OUT">
+            <!-- <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/> -->
+            <JSONLayout objectMessageAsJsonObject="true" eventEol="true" compact="true" properties="false"> <!-- properties = true is required for MDC values to be included by default -->
+                <KeyValuePair key="timestamp" value="$${date:yyyy-MM-dd'T'HH:mm:ss.SSSZ}" />
+                <KeyValuePair key="clientRequestId" value="${ctx:clientRequestId}" />
+                <KeyValuePair key="correlationId" value="${ctx:correlationId}" />
+                <KeyValuePair key="APP_ID" value="${ctx:APP_ID}" />
+                <KeyValuePair key="messageDetail" value="${ctx:messageDetail}" />
+            </JSONLayout>
+            <Filters>
+                <ThresholdFilter level="INFO" onMatch="NEUTRAL" onMismatch="DENY"/>
+                <ThresholdFilter level="ERROR" onMatch="DENY" onMismatch="ACCEPT"/>
+            </Filters>
+        </Console>
+        <Console name="STDERR" target="SYSTEM_ERR">
+            <!--<PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>-->
+            <JSONLayout objectMessageAsJsonObject="true" eventEol="true" compact="true" properties="false">
+                <KeyValuePair key="timestamp" value="$${date:yyyy-MM-dd'T'HH:mm:ss.SSSZ}" />
+                <KeyValuePair key="clientRequestId" value="${ctx:clientRequestId}" />
+                <KeyValuePair key="correlationId" value="${ctx:correlationId}" />
+                <KeyValuePair key="APP_ID" value="${ctx:APP_ID}" />
+                <KeyValuePair key="messageDetail" value="${ctx:messageDetail}" />
+            </JSONLayout>
+            <Filters>
+                <ThresholdFilter level="ERROR" onMatch="ACCEPT" onMismatch="DENY"/>
+            </Filters>
+        </Console>
+        <RollingFile name="FILE_INFO">
+            <FileName>${ROLLING_FILE_INFO}</FileName>
+            <FilePattern>${ROLLING_FILE_INFO_ARCHIVE}</FilePattern>
+            <JSONLayout objectMessageAsJsonObject="true" eventEol="true" compact="false" properties="false">
+                <KeyValuePair key="timestamp" value="$${date:yyyy-MM-dd'T'HH:mm:ss.SSSZ}" />
+                <KeyValuePair key="clientRequestId" value="${ctx:clientRequestId}" />
+                <KeyValuePair key="correlationId" value="${ctx:correlationId}" />
+                <KeyValuePair key="APP_ID" value="${ctx:APP_ID}" />
+                <KeyValuePair key="messageDetail" value="${ctx:messageDetail}" />
+            </JSONLayout>
+            <Filters>
+                <ThresholdFilter level="INFO" onMatch="ACCEPT" onMismatch="DENY"/>
+            </Filters>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true" /> <!--rolls every 1 day since the most specific time unit in filepattern is dd -->
+            </Policies>
+            <DefaultRolloverStrategy max="5" /><!-- keep up to 5 files before removing them -->
+        </RollingFile>
+        <RollingFile name="FILE_DEBUG">
+            <PatternLayout>
+                <Pattern>%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n%n</Pattern>
+            </PatternLayout>
+            <FileName>${ROLLING_FILE_DEBUG}</FileName>
+            <FilePattern>${ROLLING_FILE_DEBUG_ARCHIVE}</FilePattern>            
+            <Filters>
+                <ThresholdFilter level="DEBUG" onMatch="ACCEPT" onMismatch="DENY"/>
+            </Filters>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true" /> <!--rolls every 1 day since the most specific time unit in filepattern is dd -->
+            </Policies>
+            <DefaultRolloverStrategy max="5" />
+        </RollingFile>
+    </Appenders>
+    <Loggers>
+        <Root level="ERROR">
+            <AppenderRef ref="FILE_INFO"/>
+            <AppenderRef ref="FILE_DEBUG"/>
+        </Root>
+        <Logger name="hello" additivity="false" level="INFO">
+            <AppenderRef ref="FILE_INFO"/>
+            <AppenderRef ref="FILE_DEBUG"/>
+        </Logger>
+        <Logger name="org.apache" additivity="false" level="ERROR">
+            <AppenderRef ref="FILE_INFO"/>
+            <AppenderRef ref="FILE_DEBUG"/>
+        </Logger>
+    </Loggers>
+</Configuration>

@@ -11,5 +11,4 @@ public class HelloController {
 		System.out.println("Hello called");
         return "Greetings from Spring Boot!";
     }
-
 }
