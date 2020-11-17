@@ -16,12 +16,15 @@ public class RestCallController {
 
     private RestTemplate pooledRestTemplate;
     private RestTemplate nonPooledRestTemplate;
+    private RestTemplate okHttpRestTemplate;
 
     @Autowired
     public RestCallController(@Qualifier("pooledRestTemplate") RestTemplate pooledRestTemplate,
-                              @Qualifier("nonPooledRestTemplate") RestTemplate nonPooledRestTemplate){
+                              @Qualifier("nonPooledRestTemplate") RestTemplate nonPooledRestTemplate,
+                              @Qualifier("okHttpRestTemplate") RestTemplate okHttpRestTemplate){
         this.pooledRestTemplate = pooledRestTemplate;
         this.nonPooledRestTemplate = nonPooledRestTemplate;
+        this.okHttpRestTemplate = okHttpRestTemplate;
     }
 
     @GetMapping("/api/rest/pooled")
@@ -42,6 +45,16 @@ public class RestCallController {
     @PostMapping("/api/rest/nonpooled")
     public String httpPostNonPooled(@RequestParam String url) {
         return fetchUrlPost(url, this.nonPooledRestTemplate);
+    }
+
+    @GetMapping("/api/rest/okhttp")
+    public String httpGetOkHttp(@RequestParam String url) {
+        return fetchUrlGet(url, this.okHttpRestTemplate);
+    }
+
+    @PostMapping("/api/rest/okhttp")
+    public String httpPostOkHttp(@RequestParam String url) {
+        return fetchUrlPost(url, this.okHttpRestTemplate);
     }
 
     public String fetchUrlGet(String url, RestTemplate restTemplate){
