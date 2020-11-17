@@ -24,6 +24,7 @@ public class DelayController {
 
     private String delay(long delayMillis) throws InterruptedException {
         Thread.sleep(delayMillis);
-        return DateTimeFormatter.ofLocalizedDateTime(FormatStyle.FULL).format(ZonedDateTime.now());
+        String dateTime = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.FULL).format(ZonedDateTime.now());
+        return String.format("Returning response after delay of %d ms at time %s", delayMillis, dateTime);
     }
 }
