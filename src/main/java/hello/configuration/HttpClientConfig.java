@@ -11,11 +11,12 @@ import org.apache.http.message.BasicHeaderElementIterator;
 import org.apache.http.protocol.HTTP;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 import java.util.concurrent.TimeUnit;
 
@@ -30,37 +31,17 @@ import java.util.concurrent.TimeUnit;
 public class HttpClientConfig {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(HttpClientConfig.class);
+    private final HttpConnProperties connProperties;
 
-    // Determines the timeout in milliseconds until a connection is established.
-    @Value("${http.pooling.connectTimeout:30000}")
-    private int connectTimeout;
-
-    // The timeout when requesting a connection from the connection manager.
-    @Value("${http.pooling.requestTimeout:30000}")
-    private int requestTimeout;
-
-    // The timeout for waiting for data
-    @Value("${http.pooling.socketTimeout:60000}")
-    private int socketTimeout;
-
-    @Value("${http.pooling.maxTotal:200}")
-    private int maxTotal;
-
-    @Value("${http.pooling.defaultMaxPerRoute:100}")
-    private int defaultMaxPerRoute;
-
-    @Value("${http.pooling.keepaliveTimeMillis:20000}")
-    private int keepAliveTime;
-
-    @Value("${http.pooling.closeIdleConnectionWait:30}")
-    private int closeIdleConnectionWait;
+    public HttpClientConfig(HttpConnProperties connProperties){
+        this.connProperties = connProperties;
+    }
 
     @Bean
     public PoolingHttpClientConnectionManager poolingConnectionManager() {
-
         PoolingHttpClientConnectionManager mgr = new PoolingHttpClientConnectionManager();
-        mgr.setMaxTotal(maxTotal);
-        mgr.setDefaultMaxPerRoute(defaultMaxPerRoute);
+        mgr.setMaxTotal(connProperties.getMaxTotal());
+        mgr.setDefaultMaxPerRoute(connProperties.getDefaultMaxPerRoute());
         return mgr;
     }
 
@@ -78,22 +59,30 @@ public class HttpClientConfig {
                     return Long.parseLong(value) * 1000;
                 }
             }
-            return keepAliveTime;
+            return connProperties.getKeepAliveTime();
         };
     }
 
     @Bean
     public CloseableHttpClient httpClient() {
         RequestConfig requestConfig = RequestConfig.custom()
-                .setConnectionRequestTimeout(requestTimeout)
-                .setConnectTimeout(connectTimeout)
-                .setSocketTimeout(socketTimeout).build();
+                .setConnectionRequestTimeout(connProperties.getConnectRequestTimeout())
+                .setConnectTimeout(connProperties.getConnectTimeout())
+                .setSocketTimeout(connProperties.getSocketTimeout()).build();
 
         return HttpClients.custom()
                 .setDefaultRequestConfig(requestConfig)
                 .setConnectionManager(poolingConnectionManager())
                 .setKeepAliveStrategy(connectionKeepAliveStrategy())
                 .build();
+    }
+
+    @Bean
+    public TaskScheduler taskScheduler() {
+        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+        scheduler.setThreadNamePrefix("poolScheduler");
+        scheduler.setPoolSize(50);
+        return scheduler;
     }
 
     @Bean
@@ -106,7 +95,7 @@ public class HttpClientConfig {
                     if (connectionManager != null) {
                         LOGGER.trace("run IdleConnectionMonitor - Closing expired and idle connections...");
                         connectionManager.closeExpiredConnections();
-                        connectionManager.closeIdleConnections(closeIdleConnectionWait, TimeUnit.SECONDS);
+                        connectionManager.closeIdleConnections(connProperties.getCloseIdleConnectionWait(), TimeUnit.MILLISECONDS);
                     } else {
                         LOGGER.trace("run IdleConnectionMonitor - Http Client Connection manager is not initialised");
                     }
